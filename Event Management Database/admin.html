@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events Management Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding-bottom: 20px;
+        }
+
+        .navbar {
+            background-color: #007bff;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .navbar a,
+        .navbar button {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: bold;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0;
+        }
+
+        .navbar a:hover,
+        .navbar button:hover {
+            text-decoration: underline;
+        }
+
+        .navbar-brand {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .dashboard-cards {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .card {
+            flex: 1;
+            background: #f4f7f6;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        .card h3 {
+            margin: 0;
+            font-size: 28px;
+            color: #007bff;
+        }
+
+        .card p {
+            margin: 10px 0 0 0;
+            font-weight: bold;
+            color: #555;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 8px 12px;
+            color: white;
+        }
+
+        .btn-submit {
+            background-color: #28a745;
+            font-size: 16px;
+            padding: 10px 15px;
+        }
+
+        .btn-cancel {
+            background-color: #6c757d;
+            font-size: 16px;
+            padding: 10px 15px;
+            display: none;
+        }
+
+        .btn-edit {
+            background-color: #ffc107;
+            color: black;
+            margin-right: 5px;
+        }
+
+        .btn-delete {
+            background-color: #dc3545;
+        }
+
+        .btn-export {
+            background-color: #17a2b8;
+            margin-bottom: 10px;
+            font-size: 16px;
+            padding: 10px 15px;
+            display: none;
+            margin-top: 10px;
+        }
+
+        #message {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="navbar">
+        <div class="navbar-brand">Event Management Admin</div>
+        <div>
+            <a href="index.html">Home</a>
+            <button onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Dashboard Overview</h2>
+        <div class="dashboard-cards">
+            <div class="card">
+                <h3 id="stat-total-events">0</h3>
+                <p>Total Events</p>
+            </div>
+            <div class="card">
+                <h3 id="stat-total-regs">0</h3>
+                <p>Total Registrations</p>
+            </div>
+            <div class="card">
+                <h3 id="stat-popular-event">-</h3>
+                <p>Most Popular Event</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 id="form-title">Create New Event</h2>
+        <form id="add-event-form">
+            <div class="form-group"><label>Event Title *</label><input type="text" id="title" required></div>
+            <div class="form-group"><label>Description</label><textarea id="description" rows="3"></textarea></div>
+            <div class="form-group"><label>Event Date *</label><input type="date" id="event_date" required></div>
+            <div class="form-group"><label>Event Time *</label><input type="time" id="event_time" required></div>
+            <div class="form-group"><label>Location</label><input type="text" id="location"></div>
+            <div class="form-group"><label>Max Attendees</label><input type="number" id="max_attendees" min="1"></div>
+            <button type="submit" id="btn-submit" class="btn-submit">Save Event</button>
+            <button type="button" id="btn-cancel" class="btn-cancel">Cancel Edit</button>
+            <div id="message"></div>
+        </form>
+    </div>
+
+    <div class="container">
+        <h2>Upcoming Events List</h2>
+        <div id="events-container"></div>
+    </div>
+
+    <div class="container">
+        <h2>Registered Users</h2>
+        <div class="form-group">
+            <label>Select Event:</label>
+            <select id="admin_event_select">
+                <option value="" disabled selected></option>
+            </select>
+        </div>
+        <button id="btn-export" class="btn-export">Export to CSV</button>
+        <div id="registrations-container"></div>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://yzfpdpxfrerwemyrzmxt.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6ZnBkcHhmcmVyd2VteXJ6bXh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTgwMjUsImV4cCI6MjA5MzQ5NDAyNX0.gdBxOc0qZGxJjoZaEp2RHA7F--77hHZ2B0Q8jrK6IvM';
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+        function checkAccess() {
+            if (localStorage.getItem('adminAuth') !== 'true') {
+                window.location.href = 'login.html';
+            }
+        }
+        checkAccess();
+
+        function logout() {
+            localStorage.removeItem('adminAuth');
+            window.location.href = 'login.html';
+        }
+
+        let allEvents = [];
+        let currentEditId = null;
+        let currentRegistrations = [];
+
+        async function updateDashboard() {
+            try {
+                document.getElementById('stat-total-events').innerText = allEvents.length;
+                const { data: regs } = await supabaseClient.from('registrations').select('event_id');
+                document.getElementById('stat-total-regs').innerText = regs ? regs.length : 0;
+            } catch (e) { }
+        }
+
+        async function fetchEvents() {
+            const container = document.getElementById('events-container');
+            const adminSelect = document.getElementById('admin_event_select');
+            try {
+                const { data } = await supabaseClient.from('events').select('*').order('event_date', { ascending: true });
+                allEvents = data;
+                adminSelect.innerHTML = '<option value="" disabled selected>Select an event</option>';
+                updateDashboard();
+                if (!data || data.length === 0) { container.innerHTML = '<p>No events found.</p>'; return; }
+                let html = '<table><thead><tr><th>Title</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+                data.forEach(e => {
+                    html += `<tr><td>${e.title}</td><td>${e.event_date}</td><td><button class="btn-edit" onclick="editEvent(${e.event_id})">Edit</button><button class="btn-delete" onclick="deleteEvent(${e.event_id})">Delete</button></td></tr>`;
+                    let opt = document.createElement('option'); opt.value = e.event_id; opt.textContent = e.title; adminSelect.appendChild(opt);
+                });
+                container.innerHTML = html + '</tbody></table>';
+            } catch (e) { }
+        }
+
+        window.deleteEvent = async function (id) {
+            if (confirm('Delete?')) { await supabaseClient.from('events').delete().eq('event_id', id); fetchEvents(); }
+        };
+
+        window.editEvent = function (id) {
+            const e = allEvents.find(ev => ev.event_id === id);
+            currentEditId = id;
+            document.getElementById('form-title').innerText = 'Edit Event';
+            document.getElementById('btn-submit').innerText = 'Update Event';
+            document.getElementById('btn-cancel').style.display = 'inline-block';
+            document.getElementById('title').value = e.title;
+            document.getElementById('event_date').value = e.event_date;
+            document.getElementById('event_time').value = e.event_time.substring(0, 5);
+            document.getElementById('location').value = e.location || '';
+            window.scrollTo(0, 0);
+        };
+
+        function resetForm() {
+            currentEditId = null;
+            document.getElementById('form-title').innerText = 'Create New Event';
+            document.getElementById('btn-submit').innerText = 'Save Event';
+            document.getElementById('btn-cancel').style.display = 'none';
+            document.getElementById('add-event-form').reset();
+        }
+
+        document.getElementById('btn-cancel').onclick = resetForm;
+
+        document.getElementById('add-event-form').onsubmit = async function (e) {
+            e.preventDefault();
+            const data = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                event_date: document.getElementById('event_date').value,
+                event_time: document.getElementById('event_time').value,
+                location: document.getElementById('location').value,
+                max_attendees: parseInt(document.getElementById('max_attendees').value) || null
+            };
+            if (currentEditId) { await supabaseClient.from('events').update(data).eq('event_id', currentEditId); }
+            else { await supabaseClient.from('events').insert([data]); }
+            resetForm(); fetchEvents();
+        };
+
+        document.getElementById('admin_event_select').onchange = async (e) => {
+            const { data } = await supabaseClient.from('registrations').select('*').eq('event_id', e.target.value);
+            currentRegistrations = data;
+            const container = document.getElementById('registrations-container');
+            document.getElementById('btn-export').style.display = data && data.length ? 'block' : 'none';
+            let html = '<table><thead><tr><th>Name</th><th>Email</th></tr></thead><tbody>';
+            data.forEach(r => html += `<tr><td>${r.full_name}</td><td>${r.email}</td></tr>`);
+            container.innerHTML = html + '</tbody></table>';
+        };
+
+        document.getElementById('btn-export').onclick = () => {
+            if (currentRegistrations.length === 0) return;
+            let csvContent = "data:text/csv;charset=utf-8,Full Name,Email,Phone\n";
+            currentRegistrations.forEach(r => {
+                csvContent += `${r.full_name},${r.email},${r.phone_number || ''}\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `registrations_${document.getElementById('admin_event_select').value}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        fetchEvents();
+    </script>
+</body>
+
+</html>

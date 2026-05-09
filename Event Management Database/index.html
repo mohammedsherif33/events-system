@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Available Events</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; }
+        .navbar { background-color: #007bff; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .navbar a { color: white; text-decoration: none; margin-left: 20px; font-weight: bold; }
+        .navbar a:hover { text-decoration: underline; }
+        .navbar-brand { font-size: 20px; font-weight: bold; }
+        .container { padding: 20px; }
+        .header { text-align: center; margin-bottom: 40px; margin-top: 20px; }
+        .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; max-width: 1200px; margin: auto; }
+        .event-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 5px solid #007bff; }
+        .event-card h3 { margin-top: 0; color: #333; }
+        .event-card p { color: #666; font-size: 14px; }
+        .event-info { margin: 15px 0; font-size: 13px; font-weight: bold; }
+        .btn-reg { display: inline-block; width: 100%; padding: 10px; background: #28a745; color: white; text-align: center; text-decoration: none; border-radius: 5px; font-weight: bold; cursor: pointer; border: none; }
+        .btn-reg:hover { background: #218838; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 400px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="navbar-brand">Event Management</div>
+        <div>
+            <a href="index.html">Home</a>
+            <a href="admin.html">Admin Panel</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>Upcoming Community Events</h1>
+            <p>Browse and register for our latest events</p>
+        </div>
+
+        <div id="events-grid" class="events-grid">
+            <!-- Events will appear here -->
+        </div>
+    </div>
+
+    <!-- Registration Modal -->
+    <div id="regModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Register</h2>
+            <form id="regForm">
+                <input type="hidden" id="event_id">
+                <input type="text" id="full_name" placeholder="Full Name" required>
+                <input type="email" id="email" placeholder="Email Address" required>
+                <input type="text" id="phone" placeholder="Phone Number" required>
+                <button type="submit" class="btn-reg">Confirm Registration</button>
+                <button type="button" onclick="closeModal()" style="background:none; border:none; color:red; width:100%; margin-top:10px; cursor:pointer;">Cancel</button>
+            </form>
+            <div id="msg" style="text-align:center; margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://yzfpdpxfrerwemyrzmxt.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6ZnBkcHhmcmVyd2VteXJ6bXh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTgwMjUsImV4cCI6MjA5MzQ5NDAyNX0.gdBxOc0qZGxJjoZaEp2RHA7F--77hHZ2B0Q8jrK6IvM';
+        const client = supabase.createClient(supabaseUrl, supabaseKey);
+
+        async function loadEvents() {
+            const { data, error } = await client.from('events').select('*').order('event_date', { ascending: true });
+            const grid = document.getElementById('events-grid');
+            grid.innerHTML = '';
+            
+            if (data.length === 0) { grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">No events available right now.</p>'; return; }
+
+            data.forEach(ev => {
+                const card = `
+                    <div class="event-card">
+                        <h3>${ev.title}</h3>
+                        <p>${ev.description || 'No description provided.'}</p>
+                        <div class="event-info">📅 ${ev.event_date} | ⏰ ${ev.event_time}</div>
+                        <div class="event-info">📍 ${ev.location || 'Online'}</div>
+                        <button class="btn-reg" onclick="openModal(${ev.event_id}, '${ev.title}')">Register Now</button>
+                    </div>
+                `;
+                grid.innerHTML += card;
+            });
+        }
+
+        function openModal(id, title) {
+            document.getElementById('event_id').value = id;
+            document.getElementById('modalTitle').innerText = 'Register for ' + title;
+            document.getElementById('regModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('regModal').style.display = 'none';
+            document.getElementById('regForm').reset();
+            document.getElementById('msg').innerText = '';
+        }
+
+        document.getElementById('regForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const msg = document.getElementById('msg');
+            const regData = {
+                event_id: document.getElementById('event_id').value,
+                full_name: document.getElementById('full_name').value,
+                email: document.getElementById('email').value,
+                phone_number: document.getElementById('phone').value
+            };
+
+            const { error } = await client.from('registrations').insert([regData]);
+            
+            if (error) {
+                msg.style.color = 'red';
+                msg.innerText = 'Error: ' + error.message;
+            } else {
+                msg.style.color = 'green';
+                msg.innerText = 'Success! You are registered.';
+                setTimeout(closeModal, 2000);
+            }
+        };
+
+        loadEvents();
+    </script>
+</body>
+</html>
